@@ -8,11 +8,25 @@ const outputFilename = (src: string, suffix: string) => {
   return m[1] + suffix + "." + m[2];
 };
 
+export type Status = "wait" | "processing" | "completed";
+
+export type InputFile = {
+  name: string;
+  type: string;
+};
+
+export type OutputFile = {
+  name: string;
+  url: string;
+  type: string;
+};
+
 export const useFfmpeg = () => {
   const [progress, setProgress] = useState(0);
-  const [processing, setProcessing] = useState(false);
+  const [status, setStatus] = useState<Status>("wait");
 
-  const [inputFilename, setInputFilename] = useState("");
+  const [inputFile, setInputFile] = useState<InputFile | null>(null);
+  const [outputFile, setOutputFile] = useState<OutputFile | null>(null);
 
   const ffmpeg = useRef(
     window.FFmpeg.createFFmpeg({
@@ -27,7 +41,7 @@ export const useFfmpeg = () => {
       await ffmpeg.current.load();
     }
 
-    setInputFilename(file.name);
+    setInputFile({ name: file.name, type: file.type });
 
     ffmpeg.current.FS(
       "writeFile",
@@ -37,25 +51,38 @@ export const useFfmpeg = () => {
   };
 
   const execCrop = async (rect: Rect) => {
+    if (!inputFile) return;
     setProgress(0);
-    setProcessing(true);
+    setStatus("processing");
 
-    const output = outputFilename(inputFilename, "_cropped") || "output";
+    const outputName = outputFilename(inputFile.name, "_cropped") || "output";
 
     await ffmpeg.current.run(
       "-i",
-      inputFilename,
+      inputFile.name,
       "-vf",
       `crop=x=${rect.x}:y=${rect.y}:w=${rect.width}:h=${rect.height}`,
-      output
+      outputName
     );
 
-    setProcessing(false);
+    setStatus("completed");
+
+    const data = ffmpeg.current.FS("readFile", outputName);
+    const u = URL.createObjectURL(
+      new Blob([data.buffer], { type: "video/mp4" })
+    );
+    setOutputFile({
+      name: outputName,
+      url: u,
+      type: inputFile.type,
+    });
   };
 
-  const killProcess = () => {
+  const exitProcess = () => {
+    setStatus("wait");
+    setOutputFile(null);
     setProgress(0);
-    setProcessing(false);
+
     try {
       ffmpeg.current.exit();
     } catch (e) {
@@ -65,9 +92,10 @@ export const useFfmpeg = () => {
 
   return {
     progress,
-    processing,
+    status,
     openInput,
+    outputFile,
     execCrop,
-    killProcess,
+    exitProcess,
   };
 };

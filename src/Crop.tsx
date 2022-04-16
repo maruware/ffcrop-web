@@ -1,10 +1,7 @@
 import React, { FC, useMemo, useRef, useState } from "react";
 import styled from "styled-components";
-import { useToasts } from "@geist-ui/react";
-import {
-  FileFunction as FileFunctionIcon,
-  XCircle as KillIcon,
-} from "@geist-ui/react-icons";
+import { Modal, Progress, useToasts } from "@geist-ui/react";
+import { FileFunction as FileFunctionIcon } from "@geist-ui/react-icons";
 import { FileSelect } from "./components/FileSelect";
 import { Video as _Video } from "./components/Video";
 import { Canvas as _Canvas } from "./components/Canvas";
@@ -17,6 +14,8 @@ import { useVideoFile } from "./hooks/useVideoFile";
 import { logger } from "./logger";
 import { useFfmpeg } from "./hooks/useFfmpeg";
 import { Rect } from "./types/Geometry";
+import { If, Else, Then } from "react-if";
+import { saveAs } from "file-saver";
 
 declare global {
   interface File {
@@ -81,10 +80,11 @@ export const Crop: FC = () => {
 
   const {
     progress,
-    processing,
+    status,
+    outputFile,
     openInput: handleInputFfmpeg,
     execCrop,
-    killProcess: killFfmpeg,
+    exitProcess: exitFfmpeg,
   } = useFfmpeg();
 
   const [currentTime, setCurrentTime] = useState<number>(0);
@@ -134,11 +134,13 @@ export const Crop: FC = () => {
   const handleExecCmd = async () => {
     if (!rect) return;
 
-    logger.log("execCrop");
     await execCrop(rect);
   };
 
-  logger.log("processing", processing);
+  const handleDownload = async () => {
+    if (!outputFile) return;
+    saveAs(outputFile.url, outputFile.name);
+  };
 
   return (
     <Container>
@@ -197,17 +199,31 @@ export const Crop: FC = () => {
         <IconButton
           iconRight={<FileFunctionIcon />}
           onClick={handleExecCmd}
-          disabled={processing}
-        />
-
-        <p>{progress}</p>
-
-        <ProcessKillButton
-          iconRight={<KillIcon />}
-          onClick={killFfmpeg}
-          disabled={!processing}
+          disabled={status !== "wait"}
         />
       </Panel>
+
+      <Modal visible={status !== "wait"} disableBackdropClick>
+        <Modal.Title>
+          <If condition={status === "processing"}>
+            <Then>Processing</Then>
+            <Else>Completed</Else>
+          </If>
+        </Modal.Title>
+        <Modal.Content>
+          <Progress type="success" value={progress * 100} />
+          {outputFile && <OutputVideo src={outputFile.url} controls />}
+        </Modal.Content>
+        <Modal.Action passive onClick={exitFfmpeg}>
+          <If condition={status === "processing"}>
+            <Then>Cancel</Then>
+            <Else>Close</Else>
+          </If>
+        </Modal.Action>
+        <Modal.Action loading={outputFile === null} onClick={handleDownload}>
+          Download
+        </Modal.Action>
+      </Modal>
     </Container>
   );
 };
@@ -229,6 +245,11 @@ const Video = styled(_Video)<ClipPos>`
   top: ${(props) => `${props.top}px`};
   width: ${(props) => `${props.width}px`};
   height: ${(props) => `${props.height}px`};
+`;
+
+const OutputVideo = styled.video`
+  margin-top: 8px;
+  width: 100%;
 `;
 
 const Canvas = styled(_Canvas)<ClipPos>`
