@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { useThrottle } from "react-use";
+import useThrottle from "react-use/lib/useThrottle";
 import styled from "styled-components";
 import { logger } from "../logger";
 import { VideoMetadata } from "../types/VideoMetadata";
@@ -28,18 +28,17 @@ export const Video: React.FC<VideoProps> = ({
     videoRef.current.currentTime = throttledCurrentTime;
   }, [throttledCurrentTime]);
 
-  const handleLoadedMetadata: React.ReactEventHandler<
-    HTMLVideoElement
-  > = () => {
-    if (!videoRef.current) return;
+  const handleLoadedMetadata: React.ReactEventHandler<HTMLVideoElement> =
+    () => {
+      if (!videoRef.current) return;
 
-    logger.log("handleLoadedMetadata");
-    onLoadedMetadata({
-      width: videoRef.current.videoWidth,
-      height: videoRef.current.videoHeight,
-      duration: videoRef.current.duration,
-    });
-  };
+      logger.log("handleLoadedMetadata");
+      onLoadedMetadata({
+        width: videoRef.current.videoWidth,
+        height: videoRef.current.videoHeight,
+        duration: videoRef.current.duration,
+      });
+    };
 
   return (
     <VideoElem

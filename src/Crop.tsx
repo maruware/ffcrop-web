@@ -4,7 +4,7 @@ import { Button, Modal, Progress, Spacer, useToasts } from "@geist-ui/react";
 import { FileSelect } from "./components/FileSelect";
 import { Video as _Video } from "./components/Video";
 import { Canvas as _Canvas } from "./components/Canvas";
-import { useMeasure } from "react-use";
+import useMeasure from "react-use/lib/useMeasure";
 import { useDropzone } from "react-dropzone";
 import { VideoSeekSlider } from "./components/VideoSeekSlider";
 import { IconButton } from "./components/IconButton";
