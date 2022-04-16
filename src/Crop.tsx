@@ -14,6 +14,7 @@ import { VideoSeekSlider } from "./components/VideoSeekSlider";
 import { IconButton } from "./components/IconButton";
 import type { createFFmpeg, fetchFile } from "@ffmpeg/ffmpeg";
 import { useVideoFile } from "./hooks/useVideoFile";
+import { logger } from "./logger";
 
 declare global {
   interface File {
@@ -172,7 +173,7 @@ export const Crop: FC = () => {
     try {
       ffmpeg.current.exit();
     } catch (e) {
-      console.error(e);
+      logger.error(e);
     }
   };
 

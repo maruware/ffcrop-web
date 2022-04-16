@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { useThrottle } from "react-use";
 import styled from "styled-components";
+import { logger } from "../logger";
 import { VideoMetadata } from "../types/VideoMetadata";
 
 export type VideoProps = {
@@ -32,7 +33,7 @@ export const Video: React.FC<VideoProps> = ({
   > = () => {
     if (!videoRef.current) return;
 
-    console.log("handleLoadedMetadata");
+    logger.log("handleLoadedMetadata");
     onLoadedMetadata({
       width: videoRef.current.videoWidth,
       height: videoRef.current.videoHeight,
