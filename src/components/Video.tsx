@@ -19,15 +19,13 @@ export const Video: React.FC<VideoProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const throttledCurrentTime = useThrottle(currentTime, 100);
-  useEffect(() => {
-    console.log("throttledCurrentTime", throttledCurrentTime);
-  }, [throttledCurrentTime]);
+
   useEffect(() => {
     if (!videoRef.current) {
       return;
     }
-    videoRef.current.currentTime = currentTime;
-  }, [currentTime]);
+    videoRef.current.currentTime = throttledCurrentTime;
+  }, [throttledCurrentTime]);
 
   const handleLoadedMetadata: React.ReactEventHandler<
     HTMLVideoElement
