@@ -7,7 +7,7 @@ import {
 } from "@geist-ui/react-icons";
 import { FileSelect } from "./components/FileSelect";
 import { Video as _Video } from "./components/Video";
-import { Canvas as _Canvas, Rect } from "./components/Canvas";
+import { Canvas as _Canvas } from "./components/Canvas";
 import { useMeasure } from "react-use";
 import { useDropzone } from "react-dropzone";
 import { VideoSeekSlider } from "./components/VideoSeekSlider";
@@ -15,6 +15,8 @@ import { IconButton } from "./components/IconButton";
 import type { createFFmpeg, fetchFile } from "@ffmpeg/ffmpeg";
 import { useVideoFile } from "./hooks/useVideoFile";
 import { logger } from "./logger";
+import { useFfmpeg } from "./hooks/useFfmpeg";
+import { Rect } from "./types/Geometry";
 
 declare global {
   interface File {
@@ -66,23 +68,7 @@ const calcClipPos = (
   }
 };
 
-const outputFilename = (src: string, suffix: string) => {
-  const m = src.match(/(.+)[.]([^.]+)$/);
-  if (!m) return undefined;
-  return m[1] + suffix + "." + m[2];
-};
-
 export const Crop: FC = () => {
-  const [progress, setProgress] = useState(0);
-
-  const ffmpeg = useRef(
-    window.FFmpeg.createFFmpeg({
-      progress: ({ ratio }) => {
-        setProgress(ratio);
-      },
-    })
-  );
-
   const {
     videoSrc,
     videoWidth,
@@ -93,6 +79,14 @@ export const Crop: FC = () => {
     onLoadedMetadata: handleLoadedMetadata,
   } = useVideoFile();
 
+  const {
+    progress,
+    processing,
+    openInput: handleInputFfmpeg,
+    execCrop,
+    killProcess: killFfmpeg,
+  } = useFfmpeg();
+
   const [currentTime, setCurrentTime] = useState<number>(0);
   const handleChangeCurrentTime = (val: number) => {
     setCurrentTime(val);
@@ -100,16 +94,7 @@ export const Crop: FC = () => {
 
   const handleOpenFile = async (file: File) => {
     handleVideoFileOpen(file);
-
-    if (!ffmpeg.current.isLoaded()) {
-      await ffmpeg.current.load();
-    }
-
-    ffmpeg.current.FS(
-      "writeFile",
-      file.name,
-      await window.FFmpeg.fetchFile(file)
-    );
+    await handleInputFfmpeg(file);
   };
 
   const handleDropFile = (acceptedFiles: File[]) => {
@@ -146,36 +131,14 @@ export const Crop: FC = () => {
 
   const [, setToast] = useToasts();
 
-  const [processing, setProcessing] = useState(false);
-
   const handleExecCmd = async () => {
     if (!rect) return;
 
-    setProgress(0);
-    setProcessing(true);
-
-    const output = outputFilename(filename, "_cropped") || "output";
-
-    await ffmpeg.current.run(
-      "-i",
-      filename,
-      "-vf",
-      `crop=x=${rect.x}:y=${rect.y}:w=${rect.width}:h=${rect.height}`,
-      output
-    );
-
-    setProcessing(false);
+    logger.log("execCrop");
+    await execCrop(rect);
   };
 
-  const handleKillProcess = () => {
-    setProgress(0);
-    setProcessing(false);
-    try {
-      ffmpeg.current.exit();
-    } catch (e) {
-      logger.error(e);
-    }
-  };
+  logger.log("processing", processing);
 
   return (
     <Container>
@@ -241,7 +204,7 @@ export const Crop: FC = () => {
 
         <ProcessKillButton
           iconRight={<KillIcon />}
-          onClick={handleKillProcess}
+          onClick={killFfmpeg}
           disabled={!processing}
         />
       </Panel>

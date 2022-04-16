@@ -1,12 +1,13 @@
-import { useTheme } from '@geist-ui/react'
-import React, { useEffect, useRef, useState } from 'react'
-import styled from 'styled-components'
+import { useTheme } from "@geist-ui/react";
+import React, { useEffect, useRef, useState } from "react";
+import styled from "styled-components";
+import { Point, Rect } from "../types/Geometry";
 
 type CanvasProps = {
-  className?: string
-  viewBox?: string
-  onRectFixed: (rect: Rect) => void
-}
+  className?: string;
+  viewBox?: string;
+  onRectFixed: (rect: Rect) => void;
+};
 
 const screenPointToSVGPoint = (
   svg: SVGSVGElement,
@@ -14,45 +15,33 @@ const screenPointToSVGPoint = (
   x: number,
   y: number
 ) => {
-  const p = svg.createSVGPoint()
-  p.x = x
-  p.y = y
-  const CTM = elem.getScreenCTM()
-  if (!CTM) return
-  return p.matrixTransform(CTM.inverse())
-}
-
-export type Point = {
-  x: number
-  y: number
-}
-
-export type Size = {
-  width: number
-  height: number
-}
-
-export type Rect = Point & Size
+  const p = svg.createSVGPoint();
+  p.x = x;
+  p.y = y;
+  const CTM = elem.getScreenCTM();
+  if (!CTM) return;
+  return p.matrixTransform(CTM.inverse());
+};
 
 const calcRect = (s: Point, e: Point): Rect => {
-  const rect: Rect = { x: 0, y: 0, width: 0, height: 0 }
+  const rect: Rect = { x: 0, y: 0, width: 0, height: 0 };
   if (s.x < e.x) {
-    rect.x = Math.round(s.x)
-    rect.width = Math.round(e.x - s.x)
+    rect.x = Math.round(s.x);
+    rect.width = Math.round(e.x - s.x);
   } else {
-    rect.x = Math.round(e.x)
-    rect.width = Math.round(s.x - e.x)
+    rect.x = Math.round(e.x);
+    rect.width = Math.round(s.x - e.x);
   }
 
   if (s.y < e.y) {
-    rect.y = Math.round(s.y)
-    rect.height = Math.round(e.y - s.y)
+    rect.y = Math.round(s.y);
+    rect.height = Math.round(e.y - s.y);
   } else {
-    rect.y = Math.round(e.y)
-    rect.height = Math.round(s.y - e.y)
+    rect.y = Math.round(e.y);
+    rect.height = Math.round(s.y - e.y);
   }
-  return rect
-}
+  return rect;
+};
 
 const rectIncludesPt = (rect: Rect, pt: Point) => {
   return (
@@ -60,119 +49,119 @@ const rectIncludesPt = (rect: Rect, pt: Point) => {
     rect.x + rect.width >= pt.x &&
     rect.y <= pt.y &&
     rect.y + rect.height >= pt.y
-  )
-}
+  );
+};
 
 export const Canvas: React.FC<CanvasProps> = ({
   className,
   viewBox,
   onRectFixed,
 }) => {
-  const { palette } = useTheme()
+  const { palette } = useTheme();
 
-  const svgRef = useRef<SVGSVGElement>(null)
-  const rectRef = useRef<SVGRectElement>(null)
+  const svgRef = useRef<SVGSVGElement>(null);
+  const rectRef = useRef<SVGRectElement>(null);
 
-  const [startPt, setStartPt] = useState<Point>()
-  const [endPt, setEndPt] = useState<Point>()
-  const [rect, setRect] = useState<Rect>({ x: 0, y: 0, width: 0, height: 0 })
-  const isMoveMode = useRef(false)
-  const startRect = useRef<Rect>()
+  const [startPt, setStartPt] = useState<Point>();
+  const [endPt, setEndPt] = useState<Point>();
+  const [rect, setRect] = useState<Rect>({ x: 0, y: 0, width: 0, height: 0 });
+  const isMoveMode = useRef(false);
+  const startRect = useRef<Rect>();
 
   useEffect(() => {
     // initialize
     if (viewBox) {
-      setRect({ x: 0, y: 0, width: 0, height: 0 })
+      setRect({ x: 0, y: 0, width: 0, height: 0 });
     }
-  }, [viewBox])
+  }, [viewBox]);
 
   const handleMouseDown: React.MouseEventHandler<SVGSVGElement> = (ev) => {
-    if (!svgRef.current) return
-    if (!rectRef.current) return
+    if (!svgRef.current) return;
+    if (!rectRef.current) return;
 
     const pt = screenPointToSVGPoint(
       svgRef.current,
       rectRef.current,
       ev.clientX,
       ev.clientY
-    )
-    if (!pt) return
+    );
+    if (!pt) return;
 
-    setStartPt(pt)
+    setStartPt(pt);
 
-    const includes = rectIncludesPt(rect, pt)
-    isMoveMode.current = includes
+    const includes = rectIncludesPt(rect, pt);
+    isMoveMode.current = includes;
     if (includes) {
-      startRect.current = rect
+      startRect.current = rect;
     }
-  }
+  };
 
   const handleMouseMove: React.MouseEventHandler<SVGSVGElement> = (ev) => {
-    if (!svgRef.current) return
-    if (!rectRef.current) return
-    if (!startPt) return
+    if (!svgRef.current) return;
+    if (!rectRef.current) return;
+    if (!startPt) return;
 
     const pt = screenPointToSVGPoint(
       svgRef.current,
       rectRef.current,
       ev.clientX,
       ev.clientY
-    )
-    setEndPt(pt)
-  }
+    );
+    setEndPt(pt);
+  };
 
   const handleMouseUp: React.MouseEventHandler<SVGSVGElement> = (ev) => {
-    if (!svgRef.current) return
-    if (!rectRef.current) return
-    if (!startPt) return
+    if (!svgRef.current) return;
+    if (!rectRef.current) return;
+    if (!startPt) return;
 
     const pt = screenPointToSVGPoint(
       svgRef.current,
       rectRef.current,
       ev.clientX,
       ev.clientY
-    )
-    if (!pt) return
+    );
+    if (!pt) return;
 
-    let rect: Rect
+    let rect: Rect;
     if (!isMoveMode.current) {
-      rect = calcRect(startPt, pt)
+      rect = calcRect(startPt, pt);
     } else {
-      if (!startRect.current) return
-      const dx = pt.x - startPt.x
-      const dy = pt.y - startPt.y
+      if (!startRect.current) return;
+      const dx = pt.x - startPt.x;
+      const dy = pt.y - startPt.y;
       rect = {
         ...startRect.current,
         x: startRect.current.x + dx,
         y: startRect.current.y + dy,
-      }
+      };
     }
-    setRect(rect)
-    onRectFixed(rect)
+    setRect(rect);
+    onRectFixed(rect);
 
     // initialize
-    setStartPt(undefined)
-    setEndPt(undefined)
-    isMoveMode.current = false
-    startRect.current = undefined
-  }
+    setStartPt(undefined);
+    setEndPt(undefined);
+    isMoveMode.current = false;
+    startRect.current = undefined;
+  };
 
   useEffect(() => {
-    if (!startPt || !endPt) return
+    if (!startPt || !endPt) return;
     if (!isMoveMode.current) {
-      const r = calcRect(startPt, endPt)
-      setRect(r)
+      const r = calcRect(startPt, endPt);
+      setRect(r);
     } else {
-      if (!startRect.current) return
-      const dx = endPt.x - startPt.x
-      const dy = endPt.y - startPt.y
+      if (!startRect.current) return;
+      const dx = endPt.x - startPt.x;
+      const dy = endPt.y - startPt.y;
       setRect({
         ...startRect.current,
         x: startRect.current.x + dx,
         y: startRect.current.y + dy,
-      })
+      });
     }
-  }, [startPt, endPt])
+  }, [startPt, endPt]);
 
   return (
     <Svg
@@ -210,9 +199,9 @@ export const Canvas: React.FC<CanvasProps> = ({
         </text>
       )}
     </Svg>
-  )
-}
+  );
+};
 
 const Svg = styled.svg`
   cursor: pointer;
-`
+`;
