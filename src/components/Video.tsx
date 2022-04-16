@@ -1,12 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { useThrottle } from "react-use";
 import styled from "styled-components";
-
-export type VideoMetadata = {
-  width: number;
-  height: number;
-  duration: number;
-};
+import { VideoMetadata } from "../types/VideoMetadata";
 
 export type VideoProps = {
   className?: string;

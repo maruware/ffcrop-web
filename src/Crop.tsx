@@ -6,13 +6,14 @@ import {
   XCircle as KillIcon,
 } from "@geist-ui/react-icons";
 import { FileSelect } from "./components/FileSelect";
-import { Video as _Video, VideoMetadata } from "./components/Video";
+import { Video as _Video } from "./components/Video";
 import { Canvas as _Canvas, Rect } from "./components/Canvas";
 import { useMeasure } from "react-use";
 import { useDropzone } from "react-dropzone";
 import { VideoSeekSlider } from "./components/VideoSeekSlider";
 import { IconButton } from "./components/IconButton";
 import type { createFFmpeg, fetchFile } from "@ffmpeg/ffmpeg";
+import { useVideoFile } from "./hooks/useVideoFile";
 
 declare global {
   interface File {
@@ -81,32 +82,23 @@ export const Crop: FC = () => {
     })
   );
 
-  const [videoSrc, setVideoSrc] = useState<string>();
-  const [videoWidth, setVideoWidth] = useState<number>();
-  const [videoHeight, setVideoHeight] = useState<number>();
-  const [duration, setDuration] = useState<number>();
-  const handleLoadedMetadata = (d: VideoMetadata) => {
-    setVideoWidth(d.width);
-    setVideoHeight(d.height);
-    console.log("duration", d.duration);
-    setDuration(d.duration);
-  };
+  const {
+    videoSrc,
+    videoWidth,
+    videoHeight,
+    duration,
+    filename,
+    onOpen: handleVideoFileOpen,
+    onLoadedMetadata: handleLoadedMetadata,
+  } = useVideoFile();
 
   const [currentTime, setCurrentTime] = useState<number>(0);
   const handleChangeCurrentTime = (val: number) => {
     setCurrentTime(val);
   };
 
-  const [filename, setFilename] = useState("");
   const handleOpenFile = async (file: File) => {
-    // reset
-    setVideoWidth(undefined);
-    setVideoHeight(undefined);
-    setRect(undefined);
-
-    const url = URL.createObjectURL(file);
-    setVideoSrc(url);
-    setFilename(file.name);
+    handleVideoFileOpen(file);
 
     if (!ffmpeg.current.isLoaded()) {
       await ffmpeg.current.load();
@@ -151,30 +143,9 @@ export const Crop: FC = () => {
     setRect(r);
   };
 
-  const ffmpegCmd = useMemo(() => {
-    if (!rect) return;
-    const output = outputFilename(filename, "_cropped") || "output";
-    return `ffmpeg -y -i ${filename || "input"} -vf crop=x=${rect.x}:y=${
-      rect.y
-    }:w=${rect.width}:h=${rect.height} ${output}`;
-  }, [filename, rect]);
-
   const [, setToast] = useToasts();
-  const handleCopyCmd = () => {
-    if (ffmpegCmd) {
-      navigator.clipboard.writeText(ffmpegCmd);
-      setToast({ text: "Copied!", type: "success" });
-    }
-  };
 
   const [processing, setProcessing] = useState(false);
-
-  // useEffect(() => {
-  //   window.api.on("ffmpegOut", (out: string) => {
-  //     const out_ = out.replace("\r", "\n");
-  //     setProcessOut((prev) => prev + out_);
-  //   });
-  // }, []);
 
   const handleExecCmd = async () => {
     if (!rect) return;
@@ -345,21 +316,6 @@ const Board = styled.div`
 
 const Buttons = styled.div`
   margin-right: 8px;
-`;
-
-const FfmpegCmdArea = styled.div`
-  margin-top: 16px;
-  border-radius: 4px;
-  padding: 8px;
-  border-style: solid;
-  border-color: #eaeaea;
-  border-width: 1px;
-
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  display: flex;
 `;
 
 const ProcessKillButton = styled(IconButton).attrs({
