@@ -1,8 +1,7 @@
-import React, { FC, useEffect, useMemo, useState } from "react";
+import React, { FC, useMemo, useRef, useState } from "react";
 import styled from "styled-components";
 import { useToasts } from "@geist-ui/react";
 import {
-  Clipboard as ClipboardIcon,
   FileFunction as FileFunctionIcon,
   XCircle as KillIcon,
 } from "@geist-ui/react-icons";
@@ -13,11 +12,18 @@ import { useMeasure } from "react-use";
 import { useDropzone } from "react-dropzone";
 import { VideoSeekSlider } from "./components/VideoSeekSlider";
 import { IconButton } from "./components/IconButton";
-import { Console as _Console } from "./components/Console";
+import type { createFFmpeg, fetchFile } from "@ffmpeg/ffmpeg";
 
 declare global {
   interface File {
     path: string;
+  }
+
+  interface Window {
+    FFmpeg: {
+      createFFmpeg: typeof createFFmpeg;
+      fetchFile: typeof fetchFile;
+    };
   }
 }
 
@@ -65,6 +71,16 @@ const outputFilename = (src: string, suffix: string) => {
 };
 
 export const Crop: FC = () => {
+  const [progress, setProgress] = useState(0);
+
+  const ffmpeg = useRef(
+    window.FFmpeg.createFFmpeg({
+      progress: ({ ratio }) => {
+        setProgress(ratio);
+      },
+    })
+  );
+
   const [videoSrc, setVideoSrc] = useState<string>();
   const [videoWidth, setVideoWidth] = useState<number>();
   const [videoHeight, setVideoHeight] = useState<number>();
@@ -81,8 +97,8 @@ export const Crop: FC = () => {
     setCurrentTime(val);
   };
 
-  const [filepath, setFilepath] = useState("");
-  const handleOpenFile = (file: File) => {
+  const [filename, setFilename] = useState("");
+  const handleOpenFile = async (file: File) => {
     // reset
     setVideoWidth(undefined);
     setVideoHeight(undefined);
@@ -90,7 +106,17 @@ export const Crop: FC = () => {
 
     const url = URL.createObjectURL(file);
     setVideoSrc(url);
-    setFilepath(file.path);
+    setFilename(file.name);
+
+    if (!ffmpeg.current.isLoaded()) {
+      await ffmpeg.current.load();
+    }
+
+    ffmpeg.current.FS(
+      "writeFile",
+      file.name,
+      await window.FFmpeg.fetchFile(file)
+    );
   };
 
   const handleDropFile = (acceptedFiles: File[]) => {
@@ -127,11 +153,11 @@ export const Crop: FC = () => {
 
   const ffmpegCmd = useMemo(() => {
     if (!rect) return;
-    const output = outputFilename(filepath, "_cropped") || "output";
-    return `ffmpeg -y -i ${filepath || "input"} -vf crop=x=${rect.x}:y=${
+    const output = outputFilename(filename, "_cropped") || "output";
+    return `ffmpeg -y -i ${filename || "input"} -vf crop=x=${rect.x}:y=${
       rect.y
     }:w=${rect.width}:h=${rect.height} ${output}`;
-  }, [filepath, rect]);
+  }, [filename, rect]);
 
   const [, setToast] = useToasts();
   const handleCopyCmd = () => {
@@ -141,7 +167,6 @@ export const Crop: FC = () => {
     }
   };
 
-  const [processOut, setProcessOut] = useState("");
   const [processing, setProcessing] = useState(false);
 
   // useEffect(() => {
@@ -152,16 +177,32 @@ export const Crop: FC = () => {
   // }, []);
 
   const handleExecCmd = async () => {
-    // if (!ffmpegCmd) return;
-    // setProcessOut("");
-    // setProcessing(true);
-    // const r = await window.api.execFfmpeg(ffmpegCmd);
-    // setProcessing(false);
-    // console.log(r);
+    if (!rect) return;
+
+    setProgress(0);
+    setProcessing(true);
+
+    const output = outputFilename(filename, "_cropped") || "output";
+
+    await ffmpeg.current.run(
+      "-i",
+      filename,
+      "-vf",
+      `crop=x=${rect.x}:y=${rect.y}:w=${rect.width}:h=${rect.height}`,
+      output
+    );
+
+    setProcessing(false);
   };
 
-  const handleKillProcess = async () => {
-    // await window.api.killFfmpeg();
+  const handleKillProcess = () => {
+    setProgress(0);
+    setProcessing(false);
+    try {
+      ffmpeg.current.exit();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
@@ -218,34 +259,19 @@ export const Crop: FC = () => {
             )}
           </VideoControl>
         </Controls>
-        <FfmpegCmdArea>
-          <FfmpegCmdText>{ffmpegCmd}</FfmpegCmdText>
-          <FfmpegButtons>
-            <IconButton
-              iconRight={<ClipboardIcon />}
-              onClick={handleCopyCmd}
-              disabled={!ffmpegCmd}
-            />
-            <IconButton
-              iconRight={<FileFunctionIcon />}
-              onClick={handleExecCmd}
-              disabled={!ffmpegCmd || processing}
-            />
-          </FfmpegButtons>
-        </FfmpegCmdArea>
+        <IconButton
+          iconRight={<FileFunctionIcon />}
+          onClick={handleExecCmd}
+          disabled={processing}
+        />
 
-        <div>
-          <ConsoleWrapper>
-            <Console content={processOut} />
-            <ProcessKillButtonWrapper>
-              <ProcessKillButton
-                iconRight={<KillIcon />}
-                disabled={!processing}
-                onClick={handleKillProcess}
-              />
-            </ProcessKillButtonWrapper>
-          </ConsoleWrapper>
-        </div>
+        <p>{progress}</p>
+
+        <ProcessKillButton
+          iconRight={<KillIcon />}
+          onClick={handleKillProcess}
+          disabled={!processing}
+        />
       </Panel>
     </Container>
   );
@@ -334,30 +360,6 @@ const FfmpegCmdArea = styled.div`
   justify-content: space-between;
 
   display: flex;
-`;
-
-const FfmpegCmdText = styled.span`
-  font-size: 14px;
-`;
-
-const FfmpegButtons = styled.div`
-  display: flex;
-`;
-
-const ConsoleWrapper = styled.div`
-  position: relative;
-  width: 100%;
-  height: 140px;
-`;
-const Console = styled(_Console)`
-  position: absolute;
-  width: 100%;
-`;
-
-const ProcessKillButtonWrapper = styled.div`
-  position: absolute;
-  bottom: 20px;
-  right: 30px;
 `;
 
 const ProcessKillButton = styled(IconButton).attrs({
