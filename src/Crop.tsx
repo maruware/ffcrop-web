@@ -1,7 +1,6 @@
-import React, { FC, useMemo, useRef, useState } from "react";
+import React, { FC, useMemo, useState } from "react";
 import styled from "styled-components";
-import { Modal, Progress, useToasts } from "@geist-ui/react";
-import { FileFunction as FileFunctionIcon } from "@geist-ui/react-icons";
+import { Button, Modal, Progress, Spacer, useToasts } from "@geist-ui/react";
 import { FileSelect } from "./components/FileSelect";
 import { Video as _Video } from "./components/Video";
 import { Canvas as _Canvas } from "./components/Canvas";
@@ -11,7 +10,6 @@ import { VideoSeekSlider } from "./components/VideoSeekSlider";
 import { IconButton } from "./components/IconButton";
 import type { createFFmpeg, fetchFile } from "@ffmpeg/ffmpeg";
 import { useVideoFile } from "./hooks/useVideoFile";
-import { logger } from "./logger";
 import { useFfmpeg } from "./hooks/useFfmpeg";
 import { Rect } from "./types/Geometry";
 import { If, Else, Then } from "react-if";
@@ -196,11 +194,16 @@ export const Crop: FC = () => {
             )}
           </VideoControl>
         </Controls>
-        <IconButton
-          iconRight={<FileFunctionIcon />}
+
+        <Spacer h={2} />
+        <Button
+          width="100%"
+          type="secondary"
           onClick={handleExecCmd}
-          disabled={status !== "wait"}
-        />
+          disabled={!videoSrc || status !== "wait" || !rect}
+        >
+          Execute
+        </Button>
       </Panel>
 
       <Modal visible={status !== "wait"} disableBackdropClick>
